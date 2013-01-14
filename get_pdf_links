@@ -7,7 +7,7 @@ use strict;
 my $usage = <<EOF;
 USAGE:
 
-get_aarons_pdfs <search_depth>
+get_pdf_links <search_depth>
 
  This script recursively searches the urls from pdftribute.net for direct links
  to pdf files. search_depth is a positive integer indicating how deeply you wish
@@ -18,7 +18,7 @@ get_aarons_pdfs <search_depth>
  NOTE: pdf links are sent to stdout and status messages are sent to stderr, so
  it is recommended to redirect stdout to a file like so:
 
-get_aarons_pdfs 1 > pdf_urls.txt
+get_pdf_links 1 > pdf_urls.txt
 EOF
 
 if($ARGV[0] eq "") {

@@ -22,7 +22,7 @@ get_pdf_links 1 > pdf_urls.txt
 EOF
 
 if($ARGV[0] eq "") {
-    print $usage;
+    print STDERR $usage;
     exit;
 }
 
@@ -31,6 +31,7 @@ select(STDOUT);
 $| = 1;
 
 our $search_depth = $ARGV[0]; # declare as global var in package "main"
+our $pdf_url_count = 0;
 
 my $browser = WWW::Mechanize->new();
 $browser->max_redirect(0);
@@ -50,13 +51,9 @@ while ($token = $parser->get_tag("div")) {
         # get the link from the very next anchor tag
         $token = $parser->get_tag("a");
         $temp_url = ${${$token}[1]}{href};
-        # if url is already a direct link to a pdf, append it to $pdf_urls
-        if($temp_url =~ m/^https?:\/\/.+\.pdf$/) {
-            push(@pdf_urls, $temp_url);
-        }
-        # else if the url is not overtly mutilated, append it to $pdf_site_urls
+        # if the url is not overtly mutilated, append it to $pdf_site_urls
         # for later crawling
-        elsif ($temp_url =~ m/^https?:\/\/.+[0-9a-zA-Z\/]$/) {
+        if ($temp_url =~ m/^https?:\/\/.+[0-9a-zA-Z\/]$/) {
             push(@pdf_site_urls, $temp_url);
         }
     }
@@ -65,6 +62,8 @@ while ($token = $parser->get_tag("div")) {
 foreach(@pdf_site_urls) {
     push(@pdf_urls, find_pdf_links($_, $search_depth));
 }
+
+print STDERR "DEBUG: Bye bye\n";
 
 #
 # functions
@@ -94,10 +93,12 @@ sub find_pdf_links {
 
         # if current url is direct pdf link
         if($browser->uri()->as_string() =~ m/^https?:\/\/.+\.pdf$/) {
-            # grab url            
+            # update url count
+            $main::pdf_url_count++;
+            # grab url
             push(@pdf_urls, $browser->uri()->as_string() . "\n");
-            print STDERR "[0] Direct link\n";
-            print STDERR " *** " . $browser->uri()->as_string() . "\n";
+            print STDERR "[0] Direct URL\n";
+            print STDERR " ** Total PDF URLs: " . $main::pdf_url_count . "\n";
             print $browser->uri()->as_string() . "\n";
             return @pdf_urls; # there is no further to go
         }
@@ -106,19 +107,28 @@ sub find_pdf_links {
             . $browser->uri()->as_string() . "\n";
 
         # get all links on the current page        
+        my $pdf_url_count = 0;        
         my @all_links = $browser->links();
         foreach(@all_links) {
             # if url is to a pdf
             if($_->url() =~ m/^https?:\/\/.+\.pdf$/) {
+                # update url counts
+                $main::pdf_url_count++;
+                $pdf_url_count++;
                 # grab url
                 push(@pdf_urls, $_->url());
-                print STDERR " *** " . $_->url() . "\n";
                 print $_->url() . "\n";
             }
             elsif ($_->url() =~ m/^https?:\/\/.+/) {
                 # add to urls for crawling
                 push(@urls, $_->url());
             }
+        }
+
+        if($pdf_url_count > 0) {
+            print STDERR " ** PDF URLs found on this site: " . $pdf_url_count
+                . "\n";
+            print STDERR " ** Total PDF URLs: " . $main::pdf_url_count . "\n";
         }
 
         if($search_depth > 1) {

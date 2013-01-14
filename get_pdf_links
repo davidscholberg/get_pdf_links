@@ -1,0 +1,138 @@
+#!/usr/bin/perl
+
+use WWW::Mechanize;
+use HTML::TokeParser;
+use strict;
+
+my $usage = <<EOF;
+USAGE:
+
+get_aarons_pdfs <search_depth>
+
+ This script recursively searches the urls from pdftribute.net for direct links
+ to pdf files. search_depth is a positive integer indicating how deeply you wish
+ to follow each url. A search_depth of 1 is recommended and will return plenty
+ of pdf links. If you wish to use a higher search depth, you'll end up hitting a
+ lot of extraneous urls (css files, CDNs, ad networks, etc.).
+
+ NOTE: pdf links are sent to stdout and status messages are sent to stderr, so
+ it is recommended to redirect stdout to a file like so:
+
+get_aarons_pdfs 1 > pdf_urls.txt
+EOF
+
+if($ARGV[0] eq "") {
+    print $usage;
+    exit;
+}
+
+# Make stdout unbuffered
+select(STDOUT);
+$| = 1;
+
+our $search_depth = $ARGV[0]; # declare as global var in package "main"
+
+my $browser = WWW::Mechanize->new();
+$browser->max_redirect(0);
+$browser->get("http://pdftribute.net/");
+
+# parse out links to sites with pdf articles
+my $parser = HTML::TokeParser->new(\$browser->content());
+my $token;
+my $temp_url;
+my @pdf_site_urls;
+# urls are printed to stdout as they're found, so the @pdf_urls variable is not
+# needed at the moment, but there may be a use for this variable in the future
+my @pdf_urls;
+while ($token = $parser->get_tag("div")) {
+    # if the class attribute for the div tag is of type "linkalign"
+    if(${${$token}[1]}{class} eq "linkalign") {
+        # get the link from the very next anchor tag
+        $token = $parser->get_tag("a");
+        $temp_url = ${${$token}[1]}{href};
+        # if url is already a direct link to a pdf, append it to $pdf_urls
+        if($temp_url =~ m/^https?:\/\/.+\.pdf$/) {
+            push(@pdf_urls, $temp_url);
+        }
+        # else if the url is not overtly mutilated, append it to $pdf_site_urls
+        # for later crawling
+        elsif ($temp_url =~ m/^https?:\/\/.+[0-9a-zA-Z\/]$/) {
+            push(@pdf_site_urls, $temp_url);
+        }
+    }
+}
+
+foreach(@pdf_site_urls) {
+    push(@pdf_urls, find_pdf_links($_, $search_depth));
+}
+
+#
+# functions
+#
+
+sub find_pdf_links {
+    (my $pdf_site_url, my $search_depth) = @_;
+
+    my @pdf_urls;
+    my @urls;
+
+    # get all urls on $pdf_site_url
+    my $browser = WWW::Mechanize->new(autocheck => 0);
+    # some of the t.co urls themselves point to other shortened urls    
+    $browser->max_redirect(2);
+    my $response = $browser->get($pdf_site_url);
+
+    if($response->is_error()) {
+        print STDERR "ERROR: " . $response->status_line() . "\n";
+        return; # there is no further to go
+    }
+
+    # if current url is not pdftribute.net (avoids needless circular crawling)
+    if(!($browser->uri()->as_string() =~ m/http:\/\/pdftribute\.net\/?/)) {
+        # calculate current recursion level
+        my $recursion_level = $main::search_depth - $search_depth + 1;
+
+        # if current url is direct pdf link
+        if($browser->uri()->as_string() =~ m/^https?:\/\/.+\.pdf$/) {
+            # grab url            
+            push(@pdf_urls, $browser->uri()->as_string() . "\n");
+            print STDERR "[0] Direct link\n";
+            print STDERR " *** " . $browser->uri()->as_string() . "\n";
+            print $browser->uri()->as_string() . "\n";
+            return @pdf_urls; # there is no further to go
+        }
+
+        print STDERR "[" . $recursion_level . "] Getting urls from "
+            . $browser->uri()->as_string() . "\n";
+
+        # get all links on the current page        
+        my @all_links = $browser->links();
+        foreach(@all_links) {
+            # if url is to a pdf
+            if($_->url() =~ m/^https?:\/\/.+\.pdf$/) {
+                # grab url
+                push(@pdf_urls, $_->url());
+                print STDERR " *** " . $_->url() . "\n";
+                print $_->url() . "\n";
+            }
+            elsif ($_->url() =~ m/^https?:\/\/.+/) {
+                # add to urls for crawling
+                push(@urls, $_->url());
+            }
+        }
+
+        if($search_depth > 1) {
+            foreach(@urls) {
+                # recursively call find_pdf_links
+                push(@pdf_urls, find_pdf_links($_, $search_depth - 1));
+            }
+        }
+    }
+
+    return @pdf_urls;
+}
+
+
+
+
+

@@ -63,7 +63,7 @@ foreach(@pdf_site_urls) {
     push(@pdf_urls, find_pdf_links($_, $search_depth));
 }
 
-print STDERR "DEBUG: Bye bye\n";
+print STDERR "Done. A total of " . $pdf_url_count . " PDF links were found.\n";
 
 #
 # functions

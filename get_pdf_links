@@ -33,31 +33,55 @@ $| = 1;
 our $search_depth = $ARGV[0]; # declare as global var in package "main"
 our $pdf_url_count = 0;
 
-my $browser = WWW::Mechanize->new();
-$browser->max_redirect(0);
-$browser->get("http://pdftribute.net/");
-
-# parse out links to sites with pdf articles
-my $parser = HTML::TokeParser->new(\$browser->content());
+my $parser;
 my $token;
 my $temp_url;
+my $previous_url_count;
 my @pdf_site_urls;
 # urls are printed to stdout as they're found, so the @pdf_urls variable is not
 # needed at the moment, but there may be a use for this variable in the future
 my @pdf_urls;
-while ($token = $parser->get_tag("div")) {
-    # if the class attribute for the div tag is of type "linkalign"
-    if(${${$token}[1]}{class} eq "linkalign") {
-        # get the link from the very next anchor tag
-        $token = $parser->get_tag("a");
-        $temp_url = ${${$token}[1]}{href};
-        # if the url is not overtly mutilated, append it to $pdf_site_urls
-        # for later crawling
-        if ($temp_url =~ m/^https?:\/\/.+[0-9a-zA-Z\/]$/) {
-            push(@pdf_site_urls, $temp_url);
+
+my $pdftribute_page_count = 0;
+#my $pdftribute_url_count = 0;
+
+my $browser = WWW::Mechanize->new();
+$browser->max_redirect(0);
+$browser->get("http://pdftribute.net/");
+
+print STDERR "Gathering twitter URLs from pdftribute.net...\n";
+
+# search every page of pdftribute.net (not really an infinite loop)
+while (1) {
+    $previous_url_count = scalar(@pdf_site_urls);
+
+    # parse out links to sites with pdf articles
+    $parser = HTML::TokeParser->new(\$browser->content());
+    while ($token = $parser->get_tag("div")) {
+        # if the class attribute for the div tag is of type "linkalign"
+        if(${${$token}[1]}{class} eq "linkalign") {
+            # get the link from the very next anchor tag
+            $token = $parser->get_tag("a");
+            $temp_url = ${${$token}[1]}{href};
+            # if the url is not overtly mutilated, append it to $pdf_site_urls
+            # for later crawling
+            if ($temp_url =~ m/^https?:\/\/.+[0-9a-zA-Z\/]$/) {
+                push(@pdf_site_urls, $temp_url);
+            }
         }
     }
+
+    if ($previous_url_count == scalar(@pdf_site_urls)) {
+        # no more urls on pdftribute.net
+        last;
+    }
+
+    $pdftribute_page_count++;
+    $browser->get("http://pdftribute.net/" . $pdftribute_page_count);
 }
+
+print STDERR "Found a total of " . scalar(@pdf_site_urls) . " twitter URLs.\n";
+print STDERR "Crawling URLs...\n";
 
 foreach(@pdf_site_urls) {
     push(@pdf_urls, find_pdf_links($_, $search_depth));

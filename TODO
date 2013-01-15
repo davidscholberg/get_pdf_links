@@ -1,5 +1,7 @@
 * grab all links from pdftribute.net (not just from the first page)
 
+* add user agent to WWW::Mechanize object (use agent_alias())
+
 * remove array that holds PDF URLs (memory hog)
 
 * refine recursive searches of depths greater than 1

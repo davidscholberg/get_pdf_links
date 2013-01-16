@@ -1,5 +1,7 @@
 * for recursive searches, eliminate URLs that point to the current page
 
+* use HTTP HEAD request before GET to ensure page is HTML
+
 * add user agent to WWW::Mechanize object (use agent_alias())
 
 * remove array that holds PDF URLs (memory hog)

@@ -131,21 +131,25 @@ sub find_pdf_links {
             . $browser->uri()->as_string() . "\n";
 
         # get all links on the current page        
-        my $pdf_url_count = 0;        
-        my @all_links = $browser->links();
-        foreach(@all_links) {
+        my $pdf_url_count = 0;
+        my $temp_url;
+        my $token;
+        my $parser = HTML::TokeParser->new(\$browser->content());
+        #my @all_links = $browser->links();
+        while($token = $parser->get_tag("a")) {
+            $temp_url = ${${$token}[1]}{href};
             # if url is to a pdf
-            if($_->url() =~ m/^https?:\/\/.+\.pdf$/) {
+            if($temp_url =~ m/^https?:\/\/.+\.pdf$/) {
                 # update url counts
                 $main::pdf_url_count++;
                 $pdf_url_count++;
                 # grab url
-                push(@pdf_urls, $_->url());
-                print $_->url() . "\n";
+                push(@pdf_urls, $temp_url);
+                print $temp_url . "\n";
             }
-            elsif ($_->url() =~ m/^https?:\/\/.+/) {
+            elsif ($temp_url =~ m/^https?:\/\/.+/) {
                 # add to urls for crawling
-                push(@urls, $_->url());
+                push(@urls, $temp_url);
             }
         }
 

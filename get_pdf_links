@@ -38,7 +38,7 @@ get_pdf_links 1 > pdf_urls.txt
  Currently, the list of PDF links is not checked for duplicates. You can easily
  eliminate duplicates using the sort and uniq utilities:
 
-sort pdf_urls.txt | uniq -u
+sort pdf_urls.txt | uniq
 EOF
 
 if ($ARGV[0] eq "") {

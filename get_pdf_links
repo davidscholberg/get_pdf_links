@@ -12,13 +12,19 @@ get_pdf_links <search_depth>
  This script recursively searches the urls from pdftribute.net for direct links
  to pdf files. search_depth is a positive integer indicating how deeply you wish
  to follow each url. A search_depth of 1 is recommended and will return plenty
- of pdf links. If you wish to use a higher search depth, you'll end up hitting a
- lot of extraneous urls (css files, CDNs, ad networks, etc.).
+ of pdf links. If you wish to use a higher search depth, you'll probably get
+ more pdf links, but the extra ones that you find may be less relevant.
 
  NOTE: pdf links are sent to stdout and status messages are sent to stderr, so
  it is recommended to redirect stdout to a file like so:
 
 get_pdf_links 1 > pdf_urls.txt
+
+ Currently, the list of PDF links is not checked for duplicates. You can easily
+ eliminate duplicates using the sort and uniq utilities:
+
+sort pdf_urls.txt | uniq -u
+
 EOF
 
 if($ARGV[0] eq "") {
@@ -122,8 +128,8 @@ sub find_pdf_links {
             # grab url
             push(@pdf_urls, $browser->uri()->as_string() . "\n");
             print STDERR "[0] Direct URL\n";
-            print STDERR " ** Total PDF URLs: " . $main::pdf_url_count . "\n";
             print $browser->uri()->as_string() . "\n";
+            print STDERR " ** Total PDF URLs: " . $main::pdf_url_count . "\n";
             return @pdf_urls; # there is no further to go
         }
 

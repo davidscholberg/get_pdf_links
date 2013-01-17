@@ -120,13 +120,14 @@ sub find_pdf_links {
     my $recursion_level = $main::search_depth - $search_depth + 1;
 
     my $browser = WWW::Mechanize->new(autocheck => 0);
-    # some of the t.co urls themselves point to other shortened urls    
+    # some of the t.co urls themselves point to other shortened urls
     $browser->max_redirect(2);
     $browser->agent_alias("Windows Mozilla");
 
     foreach(@pdf_site_urls) {
 
-        my $response = $browser->get($_);
+        # only do HEAD request at first, to prevent needless downloading
+        my $response = $browser->head($_);
 
         if ($response->is_error()) {
             print STDERR "ERROR: " . $response->status_line() . "\n";
@@ -134,7 +135,7 @@ sub find_pdf_links {
             next;
         }
 
-        # if current url is not pdftribute.net
+        # if current url is pdftribute.net
         if ($browser->uri()->as_string() 
             =~ m/http:\/\/[pP][dD][fF][tT]ribute\.net\/?/) {
             # skip this link to avoid needless circular crawling
@@ -142,7 +143,7 @@ sub find_pdf_links {
         }
 
         # if current url is direct pdf link
-        if ($browser->uri()->as_string() =~ m/^https?:\/\/.+\.pdf$/) {
+        if ($browser->content_type() =~ m/application\/pdf/) {
             # update url count
             $main::pdf_url_count++;
             # grab url
@@ -153,7 +154,23 @@ sub find_pdf_links {
             next; # there is no further to go with the current URL
         }
 
-        print STDERR "[" . $recursion_level . "] Getting urls from "
+        # if url content type is not html or status code is redirect
+        if (!($browser->content_type() =~ m/text\/html/)
+            || $browser->response()->is_redirect()) {
+            # skip url
+            next;
+        }
+
+        # this time, perform a GET request to get the actual page
+        $response = $browser->get($_);
+
+        if ($response->is_error()) {
+            print STDERR "ERROR: " . $response->status_line() . "\n";
+            # there is no further to go with the current URL
+            next;
+        }
+
+         print STDERR "[" . $recursion_level . "] Getting urls from "
             . $browser->uri()->as_string() . "\n";
 
         # get all links from a tags on the current page        

@@ -102,9 +102,7 @@ while (1) {
 print STDERR "Found a total of " . scalar(@pdf_site_urls) . " twitter URLs.\n";
 print STDERR "Crawling URLs...\n";
 
-foreach (@pdf_site_urls) {
-    push(@pdf_urls, find_pdf_links($_, $search_depth));
-}
+push(@pdf_urls, find_pdf_links(@pdf_site_urls, $search_depth));
 
 print STDERR "Done. A total of " . $pdf_url_count . " PDF links were found.\n";
 
@@ -113,26 +111,35 @@ print STDERR "Done. A total of " . $pdf_url_count . " PDF links were found.\n";
 #
 
 sub find_pdf_links {
-    (my $pdf_site_url, my $search_depth) = @_;
+    (my @pdf_site_urls, my $search_depth) = @_;
 
     my @pdf_urls;
     my @urls;
+
+    # calculate current recursion level
+    my $recursion_level = $main::search_depth - $search_depth + 1;
 
     my $browser = WWW::Mechanize->new(autocheck => 0);
     # some of the t.co urls themselves point to other shortened urls    
     $browser->max_redirect(2);
     $browser->agent_alias("Windows Mozilla");
-    my $response = $browser->get($pdf_site_url);
 
-    if ($response->is_error()) {
-        print STDERR "ERROR: " . $response->status_line() . "\n";
-        return; # there is no further to go with the current URL
-    }
+    foreach(@pdf_site_urls) {
 
-    # if current url is not pdftribute.net (avoids needless circular crawling)
-    if (!($browser->uri()->as_string() =~ m/http:\/\/pdftribute\.net\/?/)) {
-        # calculate current recursion level
-        my $recursion_level = $main::search_depth - $search_depth + 1;
+        my $response = $browser->get($_);
+
+        if ($response->is_error()) {
+            print STDERR "ERROR: " . $response->status_line() . "\n";
+            # there is no further to go with the current URL
+            next;
+        }
+
+        # if current url is not pdftribute.net
+        if ($browser->uri()->as_string() 
+            =~ m/http:\/\/[pP][dD][fF][tT]ribute\.net\/?/) {
+            # skip this link to avoid needless circular crawling
+            next;
+        }
 
         # if current url is direct pdf link
         if ($browser->uri()->as_string() =~ m/^https?:\/\/.+\.pdf$/) {
@@ -140,10 +147,10 @@ sub find_pdf_links {
             $main::pdf_url_count++;
             # grab url
             push(@pdf_urls, $browser->uri()->as_string() . "\n");
-            print STDERR "[0] Direct URL\n";
+            print STDERR "[" . $recursion_level . "] Direct URL\n";
             print $browser->uri()->as_string() . "\n";
             print STDERR " ** Total PDF URLs: " . $main::pdf_url_count . "\n";
-            return @pdf_urls; # there is no further to go with the current URL
+            next; # there is no further to go with the current URL
         }
 
         print STDERR "[" . $recursion_level . "] Getting urls from "
@@ -176,13 +183,11 @@ sub find_pdf_links {
                 . "\n";
             print STDERR " ** Total PDF URLs: " . $main::pdf_url_count . "\n";
         }
+    } # end foreach
 
-        if ($search_depth > 1) {
-            foreach (@urls) {
-                # recursively call find_pdf_links
-                push(@pdf_urls, find_pdf_links($_, $search_depth - 1));
-            }
-        }
+    if ($search_depth > 1) {
+        # recursively call find_pdf_links
+        push(@pdf_urls, find_pdf_links(@urls, $search_depth - 1));
     }
 
     return @pdf_urls;

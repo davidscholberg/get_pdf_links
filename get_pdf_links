@@ -102,7 +102,7 @@ while (1) {
 print STDERR "Found a total of " . scalar(@pdf_site_urls) . " twitter URLs.\n";
 print STDERR "Crawling URLs...\n";
 
-push(@pdf_urls, find_pdf_links(@pdf_site_urls, $search_depth));
+push(@pdf_urls, find_pdf_links($search_depth, @pdf_site_urls));
 
 print STDERR "Done. A total of " . $pdf_url_count . " PDF links were found.\n";
 
@@ -111,7 +111,7 @@ print STDERR "Done. A total of " . $pdf_url_count . " PDF links were found.\n";
 #
 
 sub find_pdf_links {
-    (my @pdf_site_urls, my $search_depth) = @_;
+    (my $search_depth, my @pdf_site_urls) = @_;
 
     my @pdf_urls;
     my @urls;
@@ -187,7 +187,7 @@ sub find_pdf_links {
 
     if ($search_depth > 1) {
         # recursively call find_pdf_links
-        push(@pdf_urls, find_pdf_links(@urls, $search_depth - 1));
+        push(@pdf_urls, find_pdf_links($search_depth - 1, @urls));
     }
 
     return @pdf_urls;

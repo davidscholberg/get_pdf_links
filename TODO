@@ -1,7 +1,9 @@
-* for recursive searches, igonre URLs that point to the current page
+* for recursive searches, ignore URLs that point to the current page
 
 * use HTTP HEAD request before GET to ensure page is HTML
 
 * for recursive searches, do breadth-first instead of depth-first
+
+* check for duplicate URLs
 
 * remove array that holds PDF URLs (memory hog)

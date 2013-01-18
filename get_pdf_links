@@ -120,8 +120,6 @@ sub find_pdf_links {
     my $recursion_level = $main::search_depth - $search_depth + 1;
 
     my $browser = WWW::Mechanize->new(autocheck => 0);
-    # some of the t.co urls themselves point to other shortened urls
-    $browser->max_redirect(2);
     $browser->agent_alias("Windows Mozilla");
 
     foreach(@pdf_site_urls) {
@@ -143,7 +141,7 @@ sub find_pdf_links {
         }
 
         # if current url is direct pdf link
-        if ($browser->content_type() =~ m/application\/pdf/) {
+        if ($browser->uri()->as_string() =~ m/^https?:\/\/.+\.pdf$/) {
             # update url count
             $main::pdf_url_count++;
             # grab url

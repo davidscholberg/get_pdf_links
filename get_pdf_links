@@ -156,21 +156,33 @@ sub find_pdf_links {
                 next; # there is no further to go with the current URL
             }
 
-            # only do HEAD request at first, to prevent needless downloading
-            my $response = $browser->head($child_url);
-
-            # if HEAD request failed
-            if ($response->is_error()) {
-                # try GET request since some servers don't like HEAD requests
-                $response = $browser->get($child_url);
+            # if we're going to follow links more deeply
+            if ($search_depth > 0) {
+                # do a GET request, since we'll need the page later
+                $browser->get($child_url);
 
                 # if GET request failed
-                if ($response->is_error()) {
+                if ($browser->response()->is_error()) {
                     # there is no further to go with the current URL
                     next;
                 }
             }
+            else {
+                # only do HEAD request at first, to prevent needless downloading
+                $browser->head($child_url);
 
+                # if HEAD request failed
+                if ($browser->response()->is_error()) {
+                    # try GET since some servers don't like HEAD requests
+                    $browser->get($child_url);
+
+                    # if GET request failed
+                    if ($browser->response()->is_error()) {
+                        # there is no further to go with the current URL
+                        next;
+                    }
+                }
+            }
             # if current url is pdftribute.net
             if ($browser->uri()->as_string() 
                 =~ m/http:\/\/[pP][dD][fF][tT]ribute\.net\/?/) {
@@ -199,17 +211,6 @@ sub find_pdf_links {
             # if we're following links more deeply
             if ($search_depth > 0) {
                 # get all links from a tags on the current page
-
-                # if previous request was HEAD
-                if ($browser->content() eq "") {
-                    # perform GET to fetch page
-                    $response = $browser->get($child_url);
-
-                    if ($response->is_error()) {
-                        # there is no further to go with the current URL
-                        next;
-                    }
-                }
 
                 $urls_to_crawl{$browser->uri()->as_string()} = {};
 

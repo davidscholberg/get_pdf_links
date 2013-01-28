@@ -53,10 +53,8 @@ $| = 1;
 my $pdftribute_url = "http://pdftribute.net/";
 
 our $search_depth = $ARGV[0];
-our $urls_checked_count = -1;
-our $pdf_url_count = 0;
 
-my %urls_to_crawl;
+my %urls_to_crawl = ();
 my $pdftribute_page_count = 0;
 
 my $browser = WWW::Mechanize->new(autocheck => 0);
@@ -91,13 +89,11 @@ print STDERR "Found a total of " . scalar(keys %urls_to_crawl)
     . " twitter URLs.\n";
 print STDERR "Crawling URLs...\n";
 
-my %hashes_of_urls = ($pdftribute_url => \%urls_to_crawl);
-
 our %pdf_urls = ();
+find_pdf_links($search_depth, \%urls_to_crawl);
 
-find_pdf_links($search_depth, \%hashes_of_urls);
-
-print STDERR "Done. A total of " . $pdf_url_count . " PDF links were found.\n";
+print STDERR "Done. A total of " . scalar(keys %pdf_urls)
+    . " PDF links were found.\n";
 
 #
 # functions
@@ -114,13 +110,12 @@ sub merge_hashes {
 
 sub find_pdf_links {
 # $search_depth is a non-negative integer indicating how deeply to follow links
-# $hashes_of_urls is a hash reference. The keys are the parent urls and the
-#   values are hash references of child urls
-# returns hash reference. The keys are the parent urls and the values are hash
-# references of child urls pointing to pdfs found on the parent url site
-    (my $search_depth, my $hashes_of_urls) = @_;
+# $urls_to_check is a hash reference. The keys are urls that need to be checked
+#   for pdfs and the values are dummy values
+# no return value
+    (my $search_depth, my $urls_to_check) = @_;
 
-    my %urls_to_crawl;
+    my %urls_to_crawl = (); # hash of urls to check on next deepest level
 
     # calculate current recursion level
     my $recursion_level = $main::search_depth - $search_depth;
@@ -128,102 +123,89 @@ sub find_pdf_links {
     my $browser = WWW::Mechanize->new(autocheck => 0);
     $browser->agent_alias("Windows Mozilla");
 
-    while ((my $parent_url, my $child_urls) = each %$hashes_of_urls) {
-        print STDERR "[" . $recursion_level . "] Getting urls from "
-            . $parent_url . "\n";
+    print STDERR "** Checking URLs on recursion level " . $recursion_level
+        . "\n";
 
-        my $pdf_url_count = 0;
+    while ((my $url_to_check, my $dummy) = each %$urls_to_check) {
+        # if current url is direct pdf link
+        if ($url_to_check =~ m/^https?:\/\/.+\.pdf$/) {
+            # grab url
+            $main::pdf_urls{$url_to_check} = 1;
+            print $url_to_check . "\n";
+            next; # there is no further to go with the current URL
+        }
 
-        while ((my $child_url, my $dummy) = each %$child_urls) {
-            $main::urls_checked_count++;
-            print STDERR "\r" .
-                " * URLs checked so far: " . $main::urls_checked_count .
-                " | Total PDF URLs: " . $main::pdf_url_count;
+        # if we're going to follow links more deeply
+        if ($search_depth > 0) {
+            # do a GET request, since we'll need the page later
+            $browser->get($url_to_check);
 
-            # if current url is direct pdf link
-            if ($child_url =~ m/^https?:\/\/.+\.pdf$/) {
-                # update url counts
-                $main::pdf_url_count++;
-                $pdf_url_count++;
-                # grab url
-                $main::pdf_urls{$child_url} = 1;
-                print $child_url . "\n";
-                next; # there is no further to go with the current URL
+            # if GET request failed
+            if ($browser->response()->is_error()) {
+                print STDERR "GET: " . $browser->response()->status_line()
+                    . " FOR URL " . $url_to_check . "\n";
+                # there is no further to go with the current URL
+                next;
             }
+        }
+        else {
+            # only do HEAD request at first, to prevent needless downloading
+            $browser->head($url_to_check);
 
-            # if we're going to follow links more deeply
-            if ($search_depth > 0) {
-                # do a GET request, since we'll need the page later
-                $browser->get($child_url);
+            # if HEAD request failed
+            if ($browser->response()->is_error()) {
+                # try GET since some servers don't like HEAD requests
+                $browser->get($url_to_check);
 
                 # if GET request failed
                 if ($browser->response()->is_error()) {
+                    print STDERR "GET: " . $browser->response()->status_line()
+                        . " FOR URL " . $url_to_check . "\n";
                     # there is no further to go with the current URL
                     next;
                 }
             }
-            else {
-                # only do HEAD request at first, to prevent needless downloading
-                $browser->head($child_url);
+        }
+        # if current url is pdftribute.net
+        if ($browser->uri()->as_string() 
+            =~ m/http:\/\/[pP][dD][fF][tT]ribute\.net\/?/) {
+            # skip this link to avoid needless circular crawling
+            next;
+        }
 
-                # if HEAD request failed
-                if ($browser->response()->is_error()) {
-                    # try GET since some servers don't like HEAD requests
-                    $browser->get($child_url);
+        # check again if current url is pdf link (in case of redirect)
+        if ($browser->uri()->as_string() =~ m/^https?:\/\/.+\.pdf$/) {
+            # grab url
+            $main::pdf_urls{$browser->uri()->as_string()} = 1;
+            print $browser->uri()->as_string() . "\n";
+            next; # there is no further to go with the current URL
+        }
 
-                    # if GET request failed
-                    if ($browser->response()->is_error()) {
-                        # there is no further to go with the current URL
-                        next;
-                    }
+        # if url content type is not html or status code is redirect
+        if (!($browser->content_type() =~ m/text\/html/)
+            || $browser->response()->is_redirect()) {
+            # skip url
+            next;
+        }
+
+        # if we're following links more deeply
+        if ($search_depth > 0) {
+            # get all links from a tags on the current page
+
+            $urls_to_crawl{$browser->uri()->as_string()} = {};
+
+            my $parser = HTML::TokeParser->new(\$browser->content());
+            while (my $token = $parser->get_tag("a")) {
+                my $temp_url = ${${$token}[1]}{href};
+                if ($temp_url =~ m/^https?:\/\/.+$/) {
+                    $urls_to_crawl{$browser->uri()->as_string()}->{$temp_url}
+                        = 1;
                 }
             }
-            # if current url is pdftribute.net
-            if ($browser->uri()->as_string() 
-                =~ m/http:\/\/[pP][dD][fF][tT]ribute\.net\/?/) {
-                # skip this link to avoid needless circular crawling
-                next;
-            }
-
-            # check again if current url is pdf link (in case of redirect)
-            if ($browser->uri()->as_string() =~ m/^https?:\/\/.+\.pdf$/) {
-                # update url counts
-                $main::pdf_url_count++;
-                $pdf_url_count++;
-                # grab url
-                $main::pdf_urls{$browser->uri()->as_string()} = 1;
-                print $browser->uri()->as_string() . "\n";
-                next; # there is no further to go with the current URL
-            }
-
-            # if url content type is not html or status code is redirect
-            if (!($browser->content_type() =~ m/text\/html/)
-                || $browser->response()->is_redirect()) {
-                # skip url
-                next;
-            }
-
-            # if we're following links more deeply
-            if ($search_depth > 0) {
-                # get all links from a tags on the current page
-
-                $urls_to_crawl{$browser->uri()->as_string()} = {};
-
-                my $parser = HTML::TokeParser->new(\$browser->content());
-                while (my $token = $parser->get_tag("a")) {
-                    my $temp_url = ${${$token}[1]}{href};
-                    if ($temp_url =~ m/^https?:\/\/.+$/) {
-                        $urls_to_crawl{$browser->uri()->as_string()}->{$temp_url}
-                            = 1;
-                    }
-                }
-            }
-        } # end while
-
-        # break out of pdf count status line for parent url
-        print STDERR "\n";
-
+        }
     } # end while
+
+    print STDERR "** Done on recursion level " . $recursion_level . "\n";
 
     if ($search_depth > 0) {
         # recursively call find_pdf_links

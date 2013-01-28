@@ -136,7 +136,7 @@ sub find_pdf_links {
 
     while ((my $parent_url, my $child_urls) = each %$hashes_of_urls) {
         print STDERR "[" . $recursion_level . "] Getting urls from "
-            . $parent_url . "\n\n\n";
+            . $parent_url . "\n";
 
         $hashes_of_pdf_urls{$parent_url} = {};
         my $pdf_urls = $hashes_of_pdf_urls{$parent_url};
@@ -145,10 +145,9 @@ sub find_pdf_links {
 
         while ((my $child_url, my $dummy) = each %$child_urls) {
             $main::urls_checked_count++;
-            print STDERR "\033[F\033[F" .
+            print STDERR "\r" .
                 " * URLs checked so far: " . $main::urls_checked_count .
-                "\n * PDF URLs on this site: " . $pdf_url_count .
-                "\n * Total PDF URLs: " . $main::pdf_url_count;
+                " | Total PDF URLs: " . $main::pdf_url_count;
 
             # if current url is direct pdf link
             if ($child_url =~ m/^https?:\/\/.+\.pdf$/) {

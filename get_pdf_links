@@ -59,16 +59,14 @@ our $pdf_url_count = 0;
 my %urls_to_crawl;
 my $pdftribute_page_count = 0;
 
-my $browser = WWW::Mechanize->new();
+my $browser = WWW::Mechanize->new(autocheck => 0);
 $browser->max_redirect(0);
 $browser->get($pdftribute_url);
 
 print STDERR "Gathering twitter URLs from pdftribute.net...\n";
 
 # search every page of pdftribute.net for twitter links
-while (1) {
-    my $previous_url_count = scalar(keys %urls_to_crawl);
-
+while ($browser->success()) {
     # parse out links to sites with pdf articles
     my $parser = HTML::TokeParser->new(\$browser->content());
     while (my $token = $parser->get_tag("div")) {
@@ -83,11 +81,6 @@ while (1) {
                 $urls_to_crawl{$temp_url} = 1;
             }
         }
-    }
-
-    if ($previous_url_count == scalar(keys %urls_to_crawl)) {
-        # no more urls on pdftribute.net
-        last;
     }
 
     $pdftribute_page_count++;

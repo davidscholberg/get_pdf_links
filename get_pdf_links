@@ -72,10 +72,10 @@ while ($browser->response()->code() != 404) {
     my $parser = HTML::TokeParser->new(\$browser->content());
     while (my $token = $parser->get_tag("div")) {
         # if the class attribute for the div tag is of type "linkalign"
-        if (${${$token}[1]}{class} eq "linkalign") {
+        if ($token->[1]->{class} eq "linkalign") {
             # get the link from the very next anchor tag
             $token = $parser->get_tag("a");
-            my $temp_url = ${${$token}[1]}{href};
+            my $temp_url = $token->[1]->{href};
             # if URL is not overtly mutilated
             if ($temp_url =~ m/^https?:\/\/.+[0-9a-zA-Z\/]$/) {
                 # add to urls for crawling
@@ -204,7 +204,7 @@ sub find_pdf_links {
 
             my $parser = HTML::TokeParser->new(\$browser->content());
             while (my $token = $parser->get_tag("a")) {
-                my $temp_url = ${${$token}[1]}{href};
+                my $temp_url = $token->[1]->{href};
                 if ($temp_url =~ m/^https?:\/\/.+$/) {
                     $urls_to_crawl{$browser->uri()->as_string()}->{$temp_url}
                         = 1;

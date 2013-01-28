@@ -100,7 +100,9 @@ print STDERR "Crawling URLs...\n";
 
 my %hashes_of_urls = ($pdftribute_url => \%urls_to_crawl);
 
-my $pdf_urls = find_pdf_links($search_depth, \%hashes_of_urls);
+our %pdf_urls = ();
+
+find_pdf_links($search_depth, \%hashes_of_urls);
 
 print STDERR "Done. A total of " . $pdf_url_count . " PDF links were found.\n";
 
@@ -125,7 +127,6 @@ sub find_pdf_links {
 # references of child urls pointing to pdfs found on the parent url site
     (my $search_depth, my $hashes_of_urls) = @_;
 
-    my %hashes_of_pdf_urls;
     my %urls_to_crawl;
 
     # calculate current recursion level
@@ -137,9 +138,6 @@ sub find_pdf_links {
     while ((my $parent_url, my $child_urls) = each %$hashes_of_urls) {
         print STDERR "[" . $recursion_level . "] Getting urls from "
             . $parent_url . "\n";
-
-        $hashes_of_pdf_urls{$parent_url} = {};
-        my $pdf_urls = $hashes_of_pdf_urls{$parent_url};
 
         my $pdf_url_count = 0;
 
@@ -155,7 +153,7 @@ sub find_pdf_links {
                 $main::pdf_url_count++;
                 $pdf_url_count++;
                 # grab url
-                $pdf_urls->{$child_url} = 1;
+                $main::pdf_urls{$child_url} = 1;
                 print $child_url . "\n";
                 next; # there is no further to go with the current URL
             }
@@ -200,7 +198,7 @@ sub find_pdf_links {
                 $main::pdf_url_count++;
                 $pdf_url_count++;
                 # grab url
-                $pdf_urls->{$browser->uri()->as_string()} = 1;
+                $main::pdf_urls{$browser->uri()->as_string()} = 1;
                 print $browser->uri()->as_string() . "\n";
                 next; # there is no further to go with the current URL
             }
@@ -236,10 +234,9 @@ sub find_pdf_links {
 
     if ($search_depth > 0) {
         # recursively call find_pdf_links
-        my $temp_pdf_urls = find_pdf_links($search_depth - 1, \%urls_to_crawl);
-        merge_hashes(\%hashes_of_pdf_urls, $temp_pdf_urls);
+        find_pdf_links($search_depth - 1, \%urls_to_crawl);
     }
 
-    return \%hashes_of_pdf_urls;
+    return;
 }
 

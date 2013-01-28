@@ -1,7 +1,15 @@
-* for recursive searches, ignore URLs that point to the current page
+* before outputting pdf url, check if it's a duplicate
 
-* for recursive searches, do breadth-first instead of depth-first
+* before checking a url, check if it's been checked already
 
-* check for duplicate URLs
+* catch signals like SIGINT and SIGTERM to do cleanup
 
-* remove array that holds PDF URLs (memory hog)
+* have a status_out function where all status messages get sent
+
+* have verbose and quiet options for status messages
+
+* have pdf url update feature to avoid having to completely regenerate list
+
+* have output option to send pdf urls straight to the specified file
+
+* have a logging option for status messages

@@ -56,6 +56,7 @@ our $search_depth = $ARGV[0];
 
 my %urls_to_crawl = ();
 my $pdftribute_page_count = 0;
+my $url_count = 0;
 
 my $browser = WWW::Mechanize->new(autocheck => 0);
 $browser->max_redirect(0);
@@ -64,7 +65,9 @@ $browser->get($pdftribute_url);
 print STDERR "Gathering twitter URLs from pdftribute.net...\n";
 
 # search every page of pdftribute.net for twitter links
-while ($browser->success()) {
+while ($browser->response()->code() != 404) {
+    $url_count = scalar(keys %urls_to_crawl);
+
     # parse out links to sites with pdf articles
     my $parser = HTML::TokeParser->new(\$browser->content());
     while (my $token = $parser->get_tag("div")) {
@@ -79,6 +82,11 @@ while ($browser->success()) {
                 $urls_to_crawl{$temp_url} = 1;
             }
         }
+    }
+
+    # this is required since the site seems to change willy nilly
+    if ($url_count == scalar(keys %urls_to_crawl)) {
+        last;
     }
 
     $pdftribute_page_count++;

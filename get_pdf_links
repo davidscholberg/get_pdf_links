@@ -96,14 +96,29 @@ our %pdf_urls = ();
 our %checked_urls = ();
 $checked_urls{$pdftribute_url} = 1;
 
+# set signal handler
+$SIG{INT} = \&signal_handler;
+$SIG{TERM} = \&signal_handler;
+
 find_pdf_links($search_depth, \%urls_to_crawl);
 
-print STDERR "Done. A total of " . scalar(keys %pdf_urls)
-    . " PDF links were found.\n";
+clean_up();
 
 #
 # functions
 #
+
+sub clean_up {
+    print STDERR "Done. A total of " . scalar(keys %main::pdf_urls)
+    . " PDF links were found.\n";
+}
+
+sub signal_handler {
+# catches INT signal and cleans up
+    print STDERR "** Caught signal SIG" . $_[0] . ". Cleaning up...\n";
+    clean_up();
+    exit;
+}
 
 sub merge_hashes {
     # takes two hash references, merges 2nd hash into first

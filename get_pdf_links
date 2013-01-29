@@ -22,7 +22,7 @@ use strict;
 my $usage = <<EOF;
 USAGE:
 
-get_pdf_links <search_depth>
+get_pdf_links -r <search_depth>
 
  This script recursively searches the urls from pdftribute.net for direct links
  to pdf files. search_depth is a positive integer indicating how deeply you wish
@@ -33,11 +33,40 @@ get_pdf_links <search_depth>
  NOTE: pdf links are sent to stdout and status messages are sent to stderr, so
  it is recommended to redirect stdout to a file like so:
 
-get_pdf_links 1 > pdf_urls.txt
+get_pdf_links -r 1 > pdf_urls.txt
 EOF
 
-if ($ARGV[0] eq "") {
+#if ($ARGV[0] eq "") {
+if (scalar(@ARGV) == 0) {
     print STDERR $usage;
+    exit;
+}
+
+our $search_depth;
+
+for (my $i = 0; $i < scalar(@ARGV); $i++) {
+    if ($ARGV[$i] eq "-r") {
+        # if next argument exists and is numeric
+        if (defined($ARGV[$i + 1]) && $ARGV[$i + 1] =~ /^\d+\z/) {
+            $search_depth = $ARGV[$i + 1];
+            $i++;
+        }
+        else {
+            print STDERR "ERROR: option -r must have a non-negative integer"
+                . " value\nQuitting\n";
+            exit;
+        }
+    }
+    else {
+        print STDERR "ERROR: invalid argument \'" . $ARGV[$i] . "\'\n"
+            . "Quitting\n";
+        exit;
+    }
+}
+
+if (!defined($search_depth)) {
+    print STDERR "ERROR: you must specify a recursion depth using option -r\n"
+        . "Quitting\n";
     exit;
 }
 
@@ -46,8 +75,6 @@ select(STDOUT);
 $| = 1;
 
 my $pdftribute_url = "http://pdftribute.net/";
-
-our $search_depth = $ARGV[0];
 
 my %urls_to_crawl = ();
 my $pdftribute_page_count = 0;

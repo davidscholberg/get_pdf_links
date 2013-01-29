@@ -1,7 +1,5 @@
 * before blacklisting a url for HTTP error, check for a network connection error
 
-* catch signals like SIGINT and SIGTERM to do cleanup
-
 * have a status_out function where all status messages get sent
 
 * have verbose and quiet options for status messages

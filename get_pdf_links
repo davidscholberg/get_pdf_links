@@ -34,11 +34,6 @@ get_pdf_links <search_depth>
  it is recommended to redirect stdout to a file like so:
 
 get_pdf_links 1 > pdf_urls.txt
-
- Currently, the list of PDF links is not checked for duplicates. You can easily
- eliminate duplicates using the sort and uniq utilities:
-
-sort pdf_urls.txt | uniq
 EOF
 
 if ($ARGV[0] eq "") {
@@ -137,9 +132,11 @@ sub find_pdf_links {
     while ((my $url_to_check, my $dummy) = each %$urls_to_check) {
         # if current url is direct pdf link
         if ($url_to_check =~ m/^https?:\/\/.+\.pdf$/) {
-            # grab url
-            $main::pdf_urls{$url_to_check} = 1;
-            print $url_to_check . "\n";
+            # output url only if it hasn't already been output
+            if (!exists($main::pdf_urls{$url_to_check})) {
+                $main::pdf_urls{$url_to_check} = 1;
+                print $url_to_check . "\n";
+            }            
             next; # there is no further to go with the current URL
         }
 
@@ -183,9 +180,11 @@ sub find_pdf_links {
 
         # check again if current url is pdf link (in case of redirect)
         if ($browser->uri()->as_string() =~ m/^https?:\/\/.+\.pdf$/) {
-            # grab url
-            $main::pdf_urls{$browser->uri()->as_string()} = 1;
-            print $browser->uri()->as_string() . "\n";
+            # output url only if it hasn't been output already
+            if (!exists($main::pdf_urls{$browser->uri()->as_string()})) {
+                $main::pdf_urls{$browser->uri()->as_string()} = 1;
+                print $browser->uri()->as_string() . "\n";
+            }
             next; # there is no further to go with the current URL
         }
 

@@ -1,5 +1,3 @@
-* before outputting pdf url, check if it's a duplicate
-
 * before checking a url, check if it's been checked already
 
 * catch signals like SIGINT and SIGTERM to do cleanup

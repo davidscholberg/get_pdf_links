@@ -93,6 +93,9 @@ print STDERR "Found a total of " . scalar(keys %urls_to_crawl)
 print STDERR "Crawling URLs...\n";
 
 our %pdf_urls = ();
+our %checked_urls = ();
+$checked_urls{$pdftribute_url} = 1;
+
 find_pdf_links($search_depth, \%urls_to_crawl);
 
 print STDERR "Done. A total of " . scalar(keys %pdf_urls)
@@ -130,6 +133,11 @@ sub find_pdf_links {
         . "\n";
 
     while ((my $url_to_check, my $dummy) = each %$urls_to_check) {
+        # if url has already been checked, skip it
+        if (exists($main::checked_urls{$url_to_check})) {
+            next;
+        }
+
         # if current url is direct pdf link
         if ($url_to_check =~ m/^https?:\/\/.+\.pdf$/) {
             # output url only if it hasn't already been output
@@ -171,10 +179,18 @@ sub find_pdf_links {
                 }
             }
         }
+        
+        # check again if url has already been checked (in case of redirect)
+        if (exists($main::checked_urls{$browser->uri()->as_string()})) {
+            next;
+        }
+
         # if current url is pdftribute.net
         if ($browser->uri()->as_string() 
-            =~ m/http:\/\/[pP][dD][fF][tT]ribute\.net\/?/) {
+            =~ m/https?:\/\/[pP][dD][fF][tT]ribute\.net\/?/) {
             # skip this link to avoid needless circular crawling
+            $main::checked_urls{$url_to_check} = 1;
+            $main::checked_urls{$browser->uri()->as_string()} = 1;
             next;
         }
 
@@ -192,6 +208,8 @@ sub find_pdf_links {
         if (!($browser->content_type() =~ m/text\/html/)
             || $browser->response()->is_redirect()) {
             # skip url
+            $main::checked_urls{$url_to_check} = 1;
+            $main::checked_urls{$browser->uri()->as_string()} = 1;
             next;
         }
 
@@ -199,17 +217,17 @@ sub find_pdf_links {
         if ($search_depth > 0) {
             # get all links from a tags on the current page
 
-            $urls_to_crawl{$browser->uri()->as_string()} = {};
-
             my $parser = HTML::TokeParser->new(\$browser->content());
             while (my $token = $parser->get_tag("a")) {
                 my $temp_url = $token->[1]->{href};
                 if ($temp_url =~ m/^https?:\/\/.+$/) {
-                    $urls_to_crawl{$browser->uri()->as_string()}->{$temp_url}
-                        = 1;
+                    $urls_to_crawl{$temp_url} = 1;
                 }
             }
         }
+
+        $main::checked_urls{$url_to_check} = 1;
+        $main::checked_urls{$browser->uri()->as_string()} = 1;
     } # end while
 
     print STDERR "** Done on recursion level " . $recursion_level . "\n";

@@ -1,4 +1,4 @@
-* before checking a url, check if it's been checked already
+* before blacklisting a url for HTTP error, check for a network connection error
 
 * catch signals like SIGINT and SIGTERM to do cleanup
 

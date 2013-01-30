@@ -36,7 +36,8 @@ get_pdf_links -r <search_depth>
 get_pdf_links -r 1 > pdf_urls.txt
 EOF
 
-#if ($ARGV[0] eq "") {
+my $help_message = "Try 'get_pdf_links -h' for more help";
+
 if (scalar(@ARGV) == 0) {
     print STDERR $usage;
     exit;
@@ -44,8 +45,15 @@ if (scalar(@ARGV) == 0) {
 
 our $search_depth;
 
+# parse command line arguments
 for (my $i = 0; $i < scalar(@ARGV); $i++) {
-    if ($ARGV[$i] eq "-r") {
+    # option -h
+    if ($ARGV[$i] eq "-h") {
+        print STDERR $usage;
+        exit;
+    }
+    # option -r
+    elsif ($ARGV[$i] eq "-r") {
         # if next argument exists and is numeric
         if (defined($ARGV[$i + 1]) && $ARGV[$i + 1] =~ /^\d+\z/) {
             $search_depth = $ARGV[$i + 1];
@@ -53,20 +61,21 @@ for (my $i = 0; $i < scalar(@ARGV); $i++) {
         }
         else {
             print STDERR "ERROR: option -r must have a non-negative integer"
-                . " value\nQuitting\n";
+                . " value\n" . $help_message . "\nQuitting\n";
             exit;
         }
     }
+    # invalid option
     else {
         print STDERR "ERROR: invalid argument \'" . $ARGV[$i] . "\'\n"
-            . "Quitting\n";
+            . $help_message . "\nQuitting\n";
         exit;
     }
 }
 
 if (!defined($search_depth)) {
     print STDERR "ERROR: you must specify a recursion depth using option -r\n"
-        . "Quitting\n";
+        . $help_message . "\nQuitting\n";
     exit;
 }
 
